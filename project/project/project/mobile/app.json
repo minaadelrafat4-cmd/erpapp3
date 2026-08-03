@@ -1,0 +1,71 @@
+{
+  "expo": {
+    "name": "LUXE ERP",
+    "slug": "luxe-erp-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "luxe-erp",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0c0f13"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.luxe.erp",
+      "infoPlist": {
+        "NSCameraUsageDescription": "LUXE ERP uses the camera to scan product barcodes and QR codes.",
+        "NSLocationWhenInUseUsageDescription": "LUXE ERP uses your location to find nearby branches and warehouses."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0c0f13"
+      },
+      "package": "com.luxe.erp"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-camera",
+        {
+          "cameraPermissionText": "LUXE ERP needs camera access to scan barcodes and QR codes."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "LUXE ERP uses your location to find nearby branches."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#c08f2e"
+        }
+      ]
+    ],
+    "experiments": {
+      "tsconfigPaths": true
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "luxe-erp-mobile"
+      },
+      "supabaseUrl": "https://0ec90b57d6e95fcbda19832f.supabase.co",
+      "supabaseAnonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJib2x0IiwicmVmIjoiMGVjOTBiNTdkNmU5NWZjYmRhMTk4MzJmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg4ODE1NzQsImV4cCI6MTc1ODg4MTU3NH0.9I8-U0x86Ak8t2DGaIk0HfvTSLsAyzdnz-Nw00mMkKw"
+    }
+  }
+}
