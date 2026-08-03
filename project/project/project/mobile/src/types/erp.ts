@@ -215,3 +215,120 @@ export interface WarehouseDetail extends Warehouse {
   low_stock_count: number;
   utilization_pct: number;
 }
+
+// ============================================================
+// Customer Types
+// ============================================================
+
+export type CustomerStatus = 'active' | 'suspended' | 'locked';
+
+export interface Customer {
+  id: string;
+  user_id: string;
+  first_name: string | null;
+  last_name: string | null;
+  phone: string | null;
+  date_of_birth: string | null;
+  marketing_opt_in: boolean;
+  loyalty_points: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CustomerSummary {
+  id: string;
+  user_id: string;
+  first_name: string | null;
+  last_name: string | null;
+  email: string;
+  loyalty_points: number;
+  created_at: string;
+  order_count: number;
+  total_spent: number;
+  last_order_at: string | null;
+}
+
+export interface CustomerListItem extends CustomerSummary {}
+
+export interface CustomerListResult {
+  items: CustomerListItem[];
+  nextCursor: string | null;
+}
+
+export interface CustomerOrderSummary {
+  id: string;
+  order_number: string;
+  status: string;
+  payment_status: string;
+  grand_total: number;
+  currency: string;
+  placed_at: string;
+  item_count: number;
+}
+
+export interface CustomerAddress {
+  id: string;
+  customer_id: string;
+  label: string | null;
+  line1: string;
+  line2: string | null;
+  city: string;
+  state: string | null;
+  postal_code: string | null;
+  country: string;
+  phone: string | null;
+  is_default: boolean;
+  created_at: string;
+}
+
+export interface CustomerDetail extends Customer {
+  email: string;
+  order_count: number;
+  total_spent: number;
+  last_order_at: string | null;
+  addresses: CustomerAddress[];
+  recent_orders: CustomerOrderSummary[];
+}
+
+// ============================================================
+// Supplier Types
+// ============================================================
+
+export interface Supplier {
+  id: string;
+  name: string;
+  contact_name: string | null;
+  email: string | null;
+  phone: string | null;
+  address: string | null;
+  city: string | null;
+  country: string | null;
+  payment_terms: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SupplierListItem extends Supplier {}
+
+export interface SupplierListResult {
+  items: SupplierListItem[];
+  nextCursor: string | null;
+}
+
+export interface PurchaseOrderSummary {
+  id: string;
+  po_number: string;
+  supplier_id: string;
+  warehouse_id: string | null;
+  status: string;
+  grand_total: number;
+  currency: string;
+  expected_at: string | null;
+  received_at: string | null;
+  created_at: string;
+}
+
+export interface SupplierDetail extends Supplier {
+  purchase_orders: PurchaseOrderSummary[];
+}

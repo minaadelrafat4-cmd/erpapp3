@@ -18,6 +18,10 @@ import {
   fetchProfileWithBranch,
   updateProfile,
   uploadProfileAvatar,
+  fetchCustomers,
+  fetchCustomerById,
+  fetchSuppliers,
+  fetchSupplierById,
   type ProductListResult,
   type ProductListItem,
   type InventoryFilter,
@@ -36,6 +40,12 @@ import type {
   Warehouse,
   WarehouseDetail,
   ProductDetail,
+  CustomerDetail,
+  CustomerListItem,
+  CustomerListResult,
+  SupplierDetail,
+  SupplierListItem,
+  SupplierListResult,
 } from '@apptypes/erp';
 import type { Profile } from '@apptypes';
 
@@ -58,6 +68,10 @@ export const erpKeys = {
   warehouse: (id: string) => ['erp', 'warehouses', 'detail', id] as const,
   notificationsAll: (userId: string) => ['erp', 'notifications', 'all', userId] as const,
   profileWithBranch: (userId: string) => ['erp', 'profile', userId] as const,
+  customersList: (search: string) => ['erp', 'customers', 'list', search] as const,
+  customer: (id: string) => ['erp', 'customers', 'detail', id] as const,
+  suppliersList: (search: string) => ['erp', 'suppliers', 'list', search] as const,
+  supplier: (id: string) => ['erp', 'suppliers', 'detail', id] as const,
 };
 
 // ============================================================
@@ -253,3 +267,63 @@ export function useUploadAvatar() {
     return publicUrl;
   };
 }
+
+// ============================================================
+// Customer Hooks
+// ============================================================
+
+export function useCustomers(search: string) {
+  return useInfiniteQuery<CustomerListResult>({
+    queryKey: erpKeys.customersList(search),
+    queryFn: ({ pageParam }) =>
+      fetchCustomers({
+        search: search || undefined,
+        cursor: (pageParam as string | null) ?? null,
+        limit: APP_CONFIG.itemsPerPage,
+      }),
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
+    staleTime: 30_000,
+  });
+}
+
+export function useCustomerDetail(id: string | null) {
+  return useQuery<CustomerDetail>({
+    queryKey: erpKeys.customer(id ?? ''),
+    queryFn: () => fetchCustomerById(id!),
+    enabled: !!id,
+    staleTime: 60_000,
+  });
+}
+
+export type { CustomerListItem, CustomerListResult };
+
+// ============================================================
+// Supplier Hooks
+// ============================================================
+
+export function useSuppliers(search: string) {
+  return useInfiniteQuery<SupplierListResult>({
+    queryKey: erpKeys.suppliersList(search),
+    queryFn: ({ pageParam }) =>
+      fetchSuppliers({
+        search: search || undefined,
+        cursor: (pageParam as string | null) ?? null,
+        limit: APP_CONFIG.itemsPerPage,
+      }),
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
+    staleTime: 30_000,
+  });
+}
+
+export function useSupplierDetail(id: string | null) {
+  return useQuery<SupplierDetail>({
+    queryKey: erpKeys.supplier(id ?? ''),
+    queryFn: () => fetchSupplierById(id!),
+    enabled: !!id,
+    staleTime: 60_000,
+  });
+}
+
+export type { SupplierListItem, SupplierListResult };

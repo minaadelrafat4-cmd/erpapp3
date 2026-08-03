@@ -15,6 +15,18 @@ import type {
   CategoryWithCount,
   BranchDetail,
   WarehouseDetail,
+  Customer,
+  CustomerSummary,
+  CustomerListItem,
+  CustomerListResult,
+  CustomerOrderSummary,
+  CustomerAddress,
+  CustomerDetail,
+  Supplier,
+  SupplierListItem,
+  SupplierListResult,
+  PurchaseOrderSummary,
+  SupplierDetail,
 } from '@apptypes/erp';
 import { APP_CONFIG } from '@constants';
 import type { Profile } from '@apptypes';
@@ -555,4 +567,188 @@ export async function uploadProfileAvatar(userId: string, fileUri: string, mimeT
 
   const { data } = supabase.storage.from('avatars').getPublicUrl(path);
   return data.publicUrl;
+}
+
+// ============================================================
+// Customer Service
+// ============================================================
+
+export interface CustomerListParams {
+  search?: string;
+  cursor?: string | null;
+  limit?: number;
+}
+
+export async function fetchCustomers(opts: CustomerListParams = {}): Promise<CustomerListResult> {
+  const limit = opts.limit ?? APP_CONFIG.itemsPerPage;
+  let query = supabase
+    .from('v_customer_summary')
+    .select('id, user_id, first_name, last_name, email, loyalty_points, created_at, order_count, total_spent, last_order_at');
+
+  if (opts.search) {
+    const s = opts.search.trim();
+    query = query.or(`first_name.ilike.%${s}%,last_name.ilike.%${s}%,email.ilike.%${s}%`);
+  }
+
+  if (opts.cursor) {
+    query = query.lt('created_at', opts.cursor);
+  }
+
+  query = query.order('created_at', { ascending: false }).limit(limit + 1);
+
+  const { data, error } = await query;
+  if (error) throw toApiError(error);
+
+  const rows = (data ?? []) as CustomerSummary[];
+  const items: CustomerListItem[] = rows.slice(0, limit).map((row) => ({
+    id: row.id,
+    user_id: row.user_id,
+    first_name: row.first_name,
+    last_name: row.last_name,
+    email: row.email,
+    loyalty_points: row.loyalty_points,
+    created_at: row.created_at,
+    order_count: row.order_count,
+    total_spent: row.total_spent,
+    last_order_at: row.last_order_at,
+  }));
+
+  const nextCursor = rows.length > limit ? rows[limit - 1]!.created_at : null;
+
+  return { items, nextCursor };
+}
+
+export async function fetchCustomerById(id: string): Promise<CustomerDetail> {
+  const { data: summaryData, error: summaryError } = await supabase
+    .from('v_customer_summary')
+    .select('id, user_id, first_name, last_name, email, loyalty_points, created_at, order_count, total_spent, last_order_at')
+    .eq('id', id)
+    .maybeSingle();
+
+  if (summaryError) throw toApiError(summaryError);
+  if (!summaryData) throw new ApiError('Customer not found.', '404', 404);
+
+  const summary = summaryData as CustomerSummary;
+
+  const { data: profileData } = await supabase
+    .from('profiles')
+    .select('email, phone, status, avatar_url, full_name')
+    .eq('id', summary.user_id)
+    .maybeSingle();
+
+  const { data: addressRows, error: addressError } = await supabase
+    .from('addresses')
+    .select('id, customer_id, label, line1, line2, city, state, postal_code, country, phone, is_default, created_at')
+    .eq('customer_id', id)
+    .order('is_default', { ascending: false });
+
+  if (addressError) throw toApiError(addressError);
+
+  const { data: orderRows, error: orderError } = await supabase
+    .from('v_order_summary')
+    .select('id, order_number, status, payment_status, grand_total, currency, placed_at, created_at, item_count')
+    .eq('customer_id', id)
+    .order('placed_at', { ascending: false })
+    .limit(5);
+
+  if (orderError) throw toApiError(orderError);
+
+  const profile = profileData as { email: string | null; phone: string | null; status: string | null; avatar_url: string | null; full_name: string | null } | null;
+
+  return {
+    id: summary.id,
+    user_id: summary.user_id,
+    first_name: summary.first_name,
+    last_name: summary.last_name,
+    phone: profile?.phone ?? null,
+    email: profile?.email ?? summary.email,
+    date_of_birth: null,
+    marketing_opt_in: false,
+    loyalty_points: summary.loyalty_points,
+    created_at: summary.created_at,
+    updated_at: summary.created_at,
+    order_count: summary.order_count,
+    total_spent: summary.total_spent,
+    last_order_at: summary.last_order_at,
+    addresses: (addressRows ?? []) as CustomerAddress[],
+    recent_orders: (orderRows ?? []) as CustomerOrderSummary[],
+  };
+}
+
+// ============================================================
+// Supplier Service
+// ============================================================
+
+export interface SupplierListParams {
+  search?: string;
+  cursor?: string | null;
+  limit?: number;
+}
+
+export async function fetchSuppliers(opts: SupplierListParams = {}): Promise<SupplierListResult> {
+  const limit = opts.limit ?? APP_CONFIG.itemsPerPage;
+  let query = supabase
+    .from('suppliers')
+    .select('id, name, contact_name, email, phone, address, city, country, payment_terms, is_active, created_at, updated_at');
+
+  if (opts.search) {
+    const s = opts.search.trim();
+    query = query.or(`name.ilike.%${s}%,contact_name.ilike.%${s}%,email.ilike.%${s}%`);
+  }
+
+  if (opts.cursor) {
+    query = query.lt('created_at', opts.cursor);
+  }
+
+  query = query.order('created_at', { ascending: false }).limit(limit + 1);
+
+  const { data, error } = await query;
+  if (error) throw toApiError(error);
+
+  const rows = (data ?? []) as Supplier[];
+  const items: SupplierListItem[] = rows.slice(0, limit).map((row) => ({
+    id: row.id,
+    name: row.name,
+    contact_name: row.contact_name,
+    email: row.email,
+    phone: row.phone,
+    address: row.address,
+    city: row.city,
+    country: row.country,
+    payment_terms: row.payment_terms,
+    is_active: row.is_active,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  }));
+
+  const nextCursor = rows.length > limit ? rows[limit - 1]!.created_at : null;
+
+  return { items, nextCursor };
+}
+
+export async function fetchSupplierById(id: string): Promise<SupplierDetail> {
+  const { data: supplierData, error: supplierError } = await supabase
+    .from('suppliers')
+    .select('id, name, contact_name, email, phone, address, city, country, payment_terms, is_active, created_at, updated_at')
+    .eq('id', id)
+    .maybeSingle();
+
+  if (supplierError) throw toApiError(supplierError);
+  if (!supplierData) throw new ApiError('Supplier not found.', '404', 404);
+
+  const supplier = supplierData as Supplier;
+
+  const { data: poRows, error: poError } = await supabase
+    .from('purchase_orders')
+    .select('id, po_number, supplier_id, warehouse_id, status, grand_total, currency, expected_at, received_at, created_at')
+    .eq('supplier_id', id)
+    .order('created_at', { ascending: false })
+    .limit(10);
+
+  if (poError) throw toApiError(poError);
+
+  return {
+    ...supplier,
+    purchase_orders: (poRows ?? []) as PurchaseOrderSummary[],
+  };
 }
