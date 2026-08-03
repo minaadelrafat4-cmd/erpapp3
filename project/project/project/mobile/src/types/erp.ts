@@ -332,3 +332,117 @@ export interface PurchaseOrderSummary {
 export interface SupplierDetail extends Supplier {
   purchase_orders: PurchaseOrderSummary[];
 }
+
+// ============================================================
+// Purchase Order Types
+// ============================================================
+
+export interface PurchaseOrderListItem {
+  id: string;
+  po_number: string;
+  supplier_id: string;
+  supplier_name: string;
+  warehouse_id: string | null;
+  warehouse_name: string | null;
+  status: string;
+  grand_total: number;
+  currency: string;
+  expected_at: string | null;
+  received_at: string | null;
+  created_at: string;
+}
+
+export interface PurchaseOrderListResult {
+  items: PurchaseOrderListItem[];
+  nextCursor: string | null;
+}
+
+export interface PurchaseOrderItem {
+  id: string;
+  purchase_order_id: string;
+  product_id: string;
+  product_name: string;
+  quantity: number;
+  unit_cost: number;
+  line_total: number;
+  received_quantity: number;
+}
+
+export interface PurchaseOrderDetail {
+  id: string;
+  po_number: string;
+  supplier_id: string;
+  supplier_name: string;
+  warehouse_id: string | null;
+  warehouse_name: string | null;
+  status: string;
+  subtotal: number;
+  tax_total: number;
+  shipping_total: number;
+  grand_total: number;
+  currency: string;
+  expected_at: string | null;
+  received_at: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+  items: PurchaseOrderItem[];
+}
+
+// ============================================================
+// Sales Order Types
+// ============================================================
+
+export interface SalesOrderListItem {
+  id: string;
+  order_number: string;
+  customer_id: string | null;
+  customer_name: string;
+  status: string;
+  payment_status: string;
+  fulfillment_status: string;
+  grand_total: number;
+  currency: string;
+  placed_at: string;
+  created_at: string;
+}
+
+export interface SalesOrderListResult {
+  items: SalesOrderListItem[];
+  nextCursor: string | null;
+}
+
+export interface SalesOrderItem {
+  id: string;
+  order_id: string;
+  product_id: string | null;
+  product_name: string;
+  variant_name: string | null;
+  sku: string | null;
+  price: number;
+  quantity: number;
+  line_total: number;
+}
+
+export interface SalesOrderDetail {
+  id: string;
+  order_number: string;
+  customer_id: string | null;
+  customer_name: string;
+  status: string;
+  payment_status: string;
+  fulfillment_status: string;
+  subtotal: number;
+  discount_total: number;
+  shipping_total: number;
+  tax_total: number;
+  grand_total: number;
+  currency: string;
+  tracking_number: string | null;
+  carrier: string | null;
+  notes: string | null;
+  placed_at: string;
+  created_at: string;
+  updated_at: string;
+  items: SalesOrderItem[];
+}

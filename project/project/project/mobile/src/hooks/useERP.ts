@@ -22,6 +22,12 @@ import {
   fetchCustomerById,
   fetchSuppliers,
   fetchSupplierById,
+  fetchPurchaseOrders,
+  fetchPurchaseOrderById,
+  fetchSalesOrders,
+  fetchSalesOrderById,
+  type PurchaseOrderListParams,
+  type SalesOrderListParams,
   type ProductListResult,
   type ProductListItem,
   type InventoryFilter,
@@ -46,6 +52,12 @@ import type {
   SupplierDetail,
   SupplierListItem,
   SupplierListResult,
+  PurchaseOrderListItem,
+  PurchaseOrderListResult,
+  PurchaseOrderDetail,
+  SalesOrderListItem,
+  SalesOrderListResult,
+  SalesOrderDetail,
 } from '@apptypes/erp';
 import type { Profile } from '@apptypes';
 
@@ -72,6 +84,10 @@ export const erpKeys = {
   customer: (id: string) => ['erp', 'customers', 'detail', id] as const,
   suppliersList: (search: string) => ['erp', 'suppliers', 'list', search] as const,
   supplier: (id: string) => ['erp', 'suppliers', 'detail', id] as const,
+  purchaseOrdersList: (search: string, status: string) => ['erp', 'purchase-orders', 'list', search, status] as const,
+  purchaseOrder: (id: string) => ['erp', 'purchase-orders', 'detail', id] as const,
+  salesOrdersList: (search: string, status: string) => ['erp', 'sales-orders', 'list', search, status] as const,
+  salesOrder: (id: string) => ['erp', 'sales-orders', 'detail', id] as const,
 };
 
 // ============================================================
@@ -327,3 +343,65 @@ export function useSupplierDetail(id: string | null) {
 }
 
 export type { SupplierListItem, SupplierListResult };
+
+// ============================================================
+// Purchase Order Hooks
+// ============================================================
+
+export function usePurchaseOrders(search: string, status: string) {
+  return useInfiniteQuery<PurchaseOrderListResult>({
+    queryKey: erpKeys.purchaseOrdersList(search, status),
+    queryFn: ({ pageParam }) =>
+      fetchPurchaseOrders({
+        search: search || undefined,
+        status: status || undefined,
+        cursor: (pageParam as string | null) ?? null,
+        limit: APP_CONFIG.itemsPerPage,
+      } satisfies PurchaseOrderListParams),
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
+    staleTime: 30_000,
+  });
+}
+
+export function usePurchaseOrderDetail(id: string | null) {
+  return useQuery<PurchaseOrderDetail>({
+    queryKey: erpKeys.purchaseOrder(id ?? ''),
+    queryFn: () => fetchPurchaseOrderById(id!),
+    enabled: !!id,
+    staleTime: 60_000,
+  });
+}
+
+export type { PurchaseOrderListItem, PurchaseOrderListResult };
+
+// ============================================================
+// Sales Order Hooks
+// ============================================================
+
+export function useSalesOrders(search: string, status: string) {
+  return useInfiniteQuery<SalesOrderListResult>({
+    queryKey: erpKeys.salesOrdersList(search, status),
+    queryFn: ({ pageParam }) =>
+      fetchSalesOrders({
+        search: search || undefined,
+        status: status || undefined,
+        cursor: (pageParam as string | null) ?? null,
+        limit: APP_CONFIG.itemsPerPage,
+      } satisfies SalesOrderListParams),
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
+    staleTime: 30_000,
+  });
+}
+
+export function useSalesOrderDetail(id: string | null) {
+  return useQuery<SalesOrderDetail>({
+    queryKey: erpKeys.salesOrder(id ?? ''),
+    queryFn: () => fetchSalesOrderById(id!),
+    enabled: !!id,
+    staleTime: 60_000,
+  });
+}
+
+export type { SalesOrderListItem, SalesOrderListResult };

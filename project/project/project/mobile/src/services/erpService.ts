@@ -27,6 +27,14 @@ import type {
   SupplierListResult,
   PurchaseOrderSummary,
   SupplierDetail,
+  PurchaseOrderListItem,
+  PurchaseOrderListResult,
+  PurchaseOrderItem,
+  PurchaseOrderDetail,
+  SalesOrderListItem,
+  SalesOrderListResult,
+  SalesOrderItem,
+  SalesOrderDetail,
 } from '@apptypes/erp';
 import { APP_CONFIG } from '@constants';
 import type { Profile } from '@apptypes';
@@ -750,5 +758,312 @@ export async function fetchSupplierById(id: string): Promise<SupplierDetail> {
   return {
     ...supplier,
     purchase_orders: (poRows ?? []) as PurchaseOrderSummary[],
+  };
+}
+
+// ============================================================
+// Purchase Orders
+// ============================================================
+
+export interface PurchaseOrderListParams {
+  search?: string;
+  status?: string;
+  cursor?: string | null;
+  limit?: number;
+}
+
+export async function fetchPurchaseOrders(params: PurchaseOrderListParams): Promise<PurchaseOrderListResult> {
+  const { search, status, cursor, limit = 20 } = params;
+  let query = supabase
+    .from('purchase_orders')
+    .select('id, po_number, supplier_id, supplier:suppliers(name), warehouse_id, warehouse:warehouses(name), status, grand_total, currency, expected_at, received_at, created_at')
+    .order('created_at', { ascending: false })
+    .limit(limit + 1);
+
+  if (status && status !== 'all') {
+    query = query.eq('status', status);
+  }
+  if (search) {
+    query = query.or(`po_number.ilike.%${search}%`);
+  }
+  if (cursor) {
+    query = query.lt('created_at', cursor);
+  }
+
+  const { data, error } = await query;
+  if (error) throw toApiError(error);
+
+  const rows = (data ?? []) as unknown as Array<{
+    id: string;
+    po_number: string;
+    supplier_id: string;
+    supplier: { name: string } | null;
+    warehouse_id: string | null;
+    warehouse: { name: string } | null;
+    status: string;
+    grand_total: number;
+    currency: string;
+    expected_at: string | null;
+    received_at: string | null;
+    created_at: string;
+  }>;
+
+  const items: PurchaseOrderListItem[] = rows.slice(0, limit).map((r) => ({
+    id: r.id,
+    po_number: r.po_number,
+    supplier_id: r.supplier_id,
+    supplier_name: r.supplier?.name ?? 'Unknown',
+    warehouse_id: r.warehouse_id,
+    warehouse_name: r.warehouse?.name ?? null,
+    status: r.status,
+    grand_total: Number(r.grand_total),
+    currency: r.currency,
+    expected_at: r.expected_at,
+    received_at: r.received_at,
+    created_at: r.created_at,
+  }));
+
+  const nextCursor = rows.length > limit ? items[items.length - 1].created_at : null;
+
+  return { items, nextCursor };
+}
+
+export async function fetchPurchaseOrderById(id: string): Promise<PurchaseOrderDetail> {
+  const { data: poRow, error: poError } = await supabase
+    .from('purchase_orders')
+    .select('id, po_number, supplier_id, supplier:suppliers(name), warehouse_id, warehouse:warehouses(name), status, subtotal, tax_total, shipping_total, grand_total, currency, expected_at, received_at, notes, created_at, updated_at')
+    .eq('id', id)
+    .maybeSingle();
+
+  if (poError) throw toApiError(poError);
+  if (!poRow) throw new ApiError('Purchase order not found.', '404', 404);
+
+  const po = poRow as unknown as {
+    id: string;
+    po_number: string;
+    supplier_id: string;
+    supplier: { name: string } | null;
+    warehouse_id: string | null;
+    warehouse: { name: string } | null;
+    status: string;
+    subtotal: number;
+    tax_total: number;
+    shipping_total: number;
+    grand_total: number;
+    currency: string;
+    expected_at: string | null;
+    received_at: string | null;
+    notes: string | null;
+    created_at: string;
+    updated_at: string;
+  };
+
+  const { data: itemRows, error: itemError } = await supabase
+    .from('purchase_order_items')
+    .select('id, purchase_order_id, product_id, product:products(name), quantity, unit_cost, line_total, received_quantity')
+    .eq('purchase_order_id', id)
+    .order('created_at', { ascending: true });
+
+  if (itemError) throw toApiError(itemError);
+
+  const items: PurchaseOrderItem[] = ((itemRows ?? []) as unknown as Array<{
+    id: string;
+    purchase_order_id: string;
+    product_id: string;
+    product: { name: string } | null;
+    quantity: number;
+    unit_cost: number;
+    line_total: number;
+    received_quantity: number;
+  }>).map((r) => ({
+    id: r.id,
+    purchase_order_id: r.purchase_order_id,
+    product_id: r.product_id,
+    product_name: r.product?.name ?? 'Unknown Product',
+    quantity: r.quantity,
+    unit_cost: Number(r.unit_cost),
+    line_total: Number(r.line_total),
+    received_quantity: r.received_quantity,
+  }));
+
+  return {
+    id: po.id,
+    po_number: po.po_number,
+    supplier_id: po.supplier_id,
+    supplier_name: po.supplier?.name ?? 'Unknown',
+    warehouse_id: po.warehouse_id,
+    warehouse_name: po.warehouse?.name ?? null,
+    status: po.status,
+    subtotal: Number(po.subtotal),
+    tax_total: Number(po.tax_total),
+    shipping_total: Number(po.shipping_total),
+    grand_total: Number(po.grand_total),
+    currency: po.currency,
+    expected_at: po.expected_at,
+    received_at: po.received_at,
+    notes: po.notes,
+    created_at: po.created_at,
+    updated_at: po.updated_at,
+    items,
+  };
+}
+
+// ============================================================
+// Sales Orders
+// ============================================================
+
+export interface SalesOrderListParams {
+  search?: string;
+  status?: string;
+  cursor?: string | null;
+  limit?: number;
+}
+
+export async function fetchSalesOrders(params: SalesOrderListParams): Promise<SalesOrderListResult> {
+  const { search, status, cursor, limit = 20 } = params;
+  let query = supabase
+    .from('orders')
+    .select('id, order_number, customer_id, customer:customers(first_name,last_name), status, payment_status, fulfillment_status, grand_total, currency, placed_at, created_at')
+    .order('placed_at', { ascending: false })
+    .limit(limit + 1);
+
+  if (status && status !== 'all') {
+    query = query.eq('status', status);
+  }
+  if (search) {
+    query = query.or(`order_number.ilike.%${search}%`);
+  }
+  if (cursor) {
+    query = query.lt('placed_at', cursor);
+  }
+
+  const { data, error } = await query;
+  if (error) throw toApiError(error);
+
+  const rows = (data ?? []) as unknown as Array<{
+    id: string;
+    order_number: string;
+    customer_id: string | null;
+    customer: { first_name: string; last_name: string } | null;
+    status: string;
+    payment_status: string;
+    fulfillment_status: string;
+    grand_total: number;
+    currency: string;
+    placed_at: string;
+    created_at: string;
+  }>;
+
+  const items: SalesOrderListItem[] = rows.slice(0, limit).map((r) => {
+    const name = r.customer
+      ? [r.customer.first_name, r.customer.last_name].filter(Boolean).join(' ').trim() || 'Unknown'
+      : 'Guest Customer';
+    return {
+      id: r.id,
+      order_number: r.order_number,
+      customer_id: r.customer_id,
+      customer_name: name,
+      status: r.status,
+      payment_status: r.payment_status,
+      fulfillment_status: r.fulfillment_status,
+      grand_total: Number(r.grand_total),
+      currency: r.currency,
+      placed_at: r.placed_at,
+      created_at: r.created_at,
+    };
+  });
+
+  const nextCursor = rows.length > limit ? items[items.length - 1].placed_at : null;
+
+  return { items, nextCursor };
+}
+
+export async function fetchSalesOrderById(id: string): Promise<SalesOrderDetail> {
+  const { data: orderRow, error: orderError } = await supabase
+    .from('orders')
+    .select('id, order_number, customer_id, customer:customers(first_name,last_name), status, payment_status, fulfillment_status, subtotal, discount_total, shipping_total, tax_total, grand_total, currency, tracking_number, carrier, notes, placed_at, created_at, updated_at')
+    .eq('id', id)
+    .maybeSingle();
+
+  if (orderError) throw toApiError(orderError);
+  if (!orderRow) throw new ApiError('Sales order not found.', '404', 404);
+
+  const o = orderRow as unknown as {
+    id: string;
+    order_number: string;
+    customer_id: string | null;
+    customer: { first_name: string; last_name: string } | null;
+    status: string;
+    payment_status: string;
+    fulfillment_status: string;
+    subtotal: number;
+    discount_total: number;
+    shipping_total: number;
+    tax_total: number;
+    grand_total: number;
+    currency: string;
+    tracking_number: string | null;
+    carrier: string | null;
+    notes: string | null;
+    placed_at: string;
+    created_at: string;
+    updated_at: string;
+  };
+
+  const { data: itemRows, error: itemError } = await supabase
+    .from('order_items')
+    .select('id, order_id, product_id, product_name, variant_name, sku, price, quantity, line_total')
+    .eq('order_id', id)
+    .order('created_at', { ascending: true });
+
+  if (itemError) throw toApiError(itemError);
+
+  const items: SalesOrderItem[] = ((itemRows ?? []) as unknown as Array<{
+    id: string;
+    order_id: string;
+    product_id: string | null;
+    product_name: string;
+    variant_name: string | null;
+    sku: string | null;
+    price: number;
+    quantity: number;
+    line_total: number;
+  }>).map((r) => ({
+    id: r.id,
+    order_id: r.order_id,
+    product_id: r.product_id,
+    product_name: r.product_name,
+    variant_name: r.variant_name,
+    sku: r.sku,
+    price: Number(r.price),
+    quantity: r.quantity,
+    line_total: Number(r.line_total),
+  }));
+
+  const customerName = o.customer
+    ? [o.customer.first_name, o.customer.last_name].filter(Boolean).join(' ').trim() || 'Unknown'
+    : 'Guest Customer';
+
+  return {
+    id: o.id,
+    order_number: o.order_number,
+    customer_id: o.customer_id,
+    customer_name: customerName,
+    status: o.status,
+    payment_status: o.payment_status,
+    fulfillment_status: o.fulfillment_status,
+    subtotal: Number(o.subtotal),
+    discount_total: Number(o.discount_total),
+    shipping_total: Number(o.shipping_total),
+    tax_total: Number(o.tax_total),
+    grand_total: Number(o.grand_total),
+    currency: o.currency,
+    tracking_number: o.tracking_number,
+    carrier: o.carrier,
+    notes: o.notes,
+    placed_at: o.placed_at,
+    created_at: o.created_at,
+    updated_at: o.updated_at,
+    items,
   };
 }
